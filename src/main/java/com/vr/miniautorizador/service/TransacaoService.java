@@ -22,25 +22,25 @@ public class TransacaoService {
     @Transactional
     public TransacaoStatus processarTransacao(TransacaoDto dto) {
         return cartaoRepository.findByNumeroCartaoForUpdate(dto.numeroCartao())
-            .map(cartao -> validarSenha(cartao, dto))
-            .orElse(TransacaoStatus.CARTAO_INEXISTENTE);
+                .map(cartao -> validarSenha(cartao, dto))
+                .orElse(TransacaoStatus.CARTAO_INEXISTENTE);
     }
 
     private TransacaoStatus validarSenha(Cartao cartao, TransacaoDto dto) {
         return Optional.of(cartao)
-            .filter(c -> c.getSenha().equals(dto.senhaCartao()))
-            .map(c -> validarSaldoEDebitar(c, dto.valor()))
-            .orElse(TransacaoStatus.SENHA_INVALIDA);
+                .filter(c -> c.getSenha().equals(dto.senhaCartao()))
+                .map(c -> validarSaldoEDebitar(c, dto.valor()))
+                .orElse(TransacaoStatus.SENHA_INVALIDA);
     }
 
     private TransacaoStatus validarSaldoEDebitar(Cartao cartao, BigDecimal valor) {
         return Optional.of(cartao)
-            .filter(c -> c.getSaldo().compareTo(valor) >= 0)
-            .map(c -> efectuarDebito(c, valor))
-            .orElse(TransacaoStatus.SALDO_INSUFICIENTE);
+                .filter(c -> c.getSaldo().compareTo(valor) >= 0)
+                .map(c -> efetuarDebito(c, valor))
+                .orElse(TransacaoStatus.SALDO_INSUFICIENTE);
     }
 
-    private TransacaoStatus efectuarDebito(Cartao cartao, BigDecimal valor) {
+    private TransacaoStatus efetuarDebito(Cartao cartao, BigDecimal valor) {
         cartao.setSaldo(cartao.getSaldo().subtract(valor));
         cartaoRepository.save(cartao);
         return TransacaoStatus.OK;
