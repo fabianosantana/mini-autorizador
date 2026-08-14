@@ -23,9 +23,9 @@ public class CartaoService {
 
     @Transactional
     public Optional<CartaoResponseDto> criarCartao(CriarCartaoDto dto) {
-        return cartaoRepository.findByNumeroCartao(dto.numeroCartao())
-            .map(existing -> Optional.<CartaoResponseDto>empty())
-            .orElseGet(() -> Optional.of(salvarNovoCartao(dto)));
+        return Optional.of(dto.numeroCartao())
+            .filter(numero -> !cartaoRepository.existsByNumeroCartao(numero))
+            .map(numero -> salvarNovoCartao(dto));
     }
 
     @Transactional(readOnly = true)
@@ -36,7 +36,7 @@ public class CartaoService {
 
     private CartaoResponseDto salvarNovoCartao(CriarCartaoDto dto) {
         Cartao novoCartao = new Cartao(dto.numeroCartao(), dto.senha(), INITIAL_BALANCE);
-        Cartao salvo = cartaoRepository.save(novoCartao);
+        Cartao salvo = cartaoRepository.saveAndFlush(novoCartao);
         return new CartaoResponseDto(salvo.getNumeroCartao(), salvo.getSenha());
     }
 }

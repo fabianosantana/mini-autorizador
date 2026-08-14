@@ -13,6 +13,8 @@ import java.util.Optional;
 @Repository
 public interface CartaoRepository extends JpaRepository<Cartao, Long> {
 
+    boolean existsByNumeroCartao(String numeroCartao);
+
     Optional<Cartao> findByNumeroCartao(String numeroCartao);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
