@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.Optional;
 
 @Service
 public class TransacaoService {
@@ -22,26 +21,20 @@ public class TransacaoService {
     @Transactional
     public TransacaoStatus processarTransacao(TransacaoDto dto) {
         return cartaoRepository.findByNumeroCartaoForUpdate(dto.numeroCartao())
-                .map(cartao -> validarSenha(cartao, dto))
-                .orElse(TransacaoStatus.CARTAO_INEXISTENTE);
+            .map(cartao -> validarEProcessar(cartao, dto))
+            .orElse(TransacaoStatus.CARTAO_INEXISTENTE);
     }
 
-    private TransacaoStatus validarSenha(Cartao cartao, TransacaoDto dto) {
-        return Optional.of(cartao)
-                .filter(c -> c.getSenha().equals(dto.senhaCartao()))
-                .map(c -> validarSaldoEDebitar(c, dto.valor()))
-                .orElse(TransacaoStatus.SENHA_INVALIDA);
-    }
-
-    private TransacaoStatus validarSaldoEDebitar(Cartao cartao, BigDecimal valor) {
-        return Optional.of(cartao)
-                .filter(c -> c.getSaldo().compareTo(valor) >= 0)
-                .map(c -> efetuarDebito(c, valor))
-                .orElse(TransacaoStatus.SALDO_INSUFICIENTE);
+    private TransacaoStatus validarEProcessar(Cartao cartao, TransacaoDto dto) {
+        return switch (cartao) {
+            case Cartao c when !c.senhaConfere(dto.senhaCartao()) -> TransacaoStatus.SENHA_INVALIDA;
+            case Cartao c when !c.possuiSaldoPara(dto.valor()) -> TransacaoStatus.SALDO_INSUFICIENTE;
+            case Cartao c -> efetuarDebito(c, dto.valor());
+        };
     }
 
     private TransacaoStatus efetuarDebito(Cartao cartao, BigDecimal valor) {
-        cartao.setSaldo(cartao.getSaldo().subtract(valor));
+        cartao.debitar(valor);
         cartaoRepository.save(cartao);
         return TransacaoStatus.OK;
     }

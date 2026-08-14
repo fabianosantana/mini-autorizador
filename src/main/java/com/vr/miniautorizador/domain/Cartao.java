@@ -9,6 +9,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Entity
 @Table(name = "cartoes", indexes = {
@@ -45,27 +46,22 @@ public class Cartao {
     // --- Comportamentos de Negócio (Rich Domain) ---
 
     public boolean senhaConfere(String senhaFornecida) {
-        if (senhaFornecida == null) {
-            return false;
-        }
-        return this.senha.equals(senhaFornecida);
+        return Optional.ofNullable(senhaFornecida)
+            .map(this.senha::equals)
+            .orElse(false);
     }
 
     public boolean possuiSaldoPara(BigDecimal valorDebito) {
-        if (valorDebito == null) {
-            return false;
-        }
-        return this.saldo.compareTo(valorDebito) >= 0;
+        return Optional.ofNullable(valorDebito)
+            .map(v -> this.saldo.compareTo(v) >= 0)
+            .orElse(false);
     }
 
     public void debitar(BigDecimal valorDebito) {
-        if (!possuiSaldoPara(valorDebito)) {
-            throw new IllegalStateException("Saldo insuficiente para realizar o débito.");
-        }
         this.saldo = this.saldo.subtract(valorDebito);
     }
 
-    // --- Getters e Setters ---
+    // --- Getters ---
 
     public Long getId() {
         return id;
