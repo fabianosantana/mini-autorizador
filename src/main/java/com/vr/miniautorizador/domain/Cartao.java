@@ -9,14 +9,12 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Entity
-@Table(
-    name = "cartoes",
-    indexes = {
+@Table(name = "cartoes", indexes = {
         @Index(name = "idx_cartao_numero", columnList = "numero_cartao", unique = true)
-    }
-)
+})
 public class Cartao {
 
     @Id
@@ -32,7 +30,11 @@ public class Cartao {
     @Column(name = "saldo", nullable = false, precision = 12, scale = 2)
     private BigDecimal saldo;
 
-    public Cartao() {
+    /**
+     * Construtor padrão exigido por frameworks como JPA/Hibernate.
+     * Visibilidade protected evita instanciação de objetos vazios pela aplicação.
+     */
+    protected Cartao() {
     }
 
     public Cartao(String numeroCartao, String senha, BigDecimal saldo) {
@@ -40,6 +42,26 @@ public class Cartao {
         this.senha = senha;
         this.saldo = saldo;
     }
+
+    // --- Comportamentos de Negócio (Rich Domain) ---
+
+    public boolean senhaConfere(String senhaFornecida) {
+        return Optional.ofNullable(senhaFornecida)
+            .map(this.senha::equals)
+            .orElse(false);
+    }
+
+    public boolean possuiSaldoPara(BigDecimal valorDebito) {
+        return Optional.ofNullable(valorDebito)
+            .map(v -> this.saldo.compareTo(v) >= 0)
+            .orElse(false);
+    }
+
+    public void debitar(BigDecimal valorDebito) {
+        this.saldo = this.saldo.subtract(valorDebito);
+    }
+
+    // --- Getters ---
 
     public Long getId() {
         return id;
@@ -49,8 +71,8 @@ public class Cartao {
         return numeroCartao;
     }
 
-    public void setNumeroCartao(String numeroCartao) {
-        this.numeroCartao = numeroCartao;
+    public BigDecimal getSaldo() {
+        return saldo;
     }
 
     public String getSenha() {
@@ -59,13 +81,5 @@ public class Cartao {
 
     public void setSenha(String senha) {
         this.senha = senha;
-    }
-
-    public BigDecimal getSaldo() {
-        return saldo;
-    }
-
-    public void setSaldo(BigDecimal saldo) {
-        this.saldo = saldo;
     }
 }

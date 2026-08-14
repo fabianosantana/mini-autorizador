@@ -41,6 +41,57 @@ class ConcurrencyTest {
     private CartaoRepository cartaoRepository;
 
     @Test
+    @DisplayName("Garantir que 2 criações simultâneas do mesmo cartão não causam race condition e exatamente 1 é criada (422 na outra)")
+    void deveGarantirConcorrenciaNaCriacaoDeCartaoSimultanea() throws Exception {
+        String numeroCartao = "6549873025634599";
+        String senha = "1234";
+
+        CriarCartaoDto criarDto = new CriarCartaoDto(numeroCartao, senha);
+        String jsonPayload = objectMapper.writeValueAsString(criarDto);
+
+        int threadCount = 2;
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        CountDownLatch readyLatch = new CountDownLatch(threadCount);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threadCount);
+
+        AtomicInteger criadosComSucesso = new AtomicInteger(0);
+        AtomicInteger duplicadosRejeitados = new AtomicInteger(0);
+
+        for (int i = 0; i < threadCount; i++) {
+            executor.submit(() -> {
+                readyLatch.countDown();
+                try {
+                    startLatch.await();
+                    MvcResult result = mockMvc.perform(post("/cartoes")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(jsonPayload))
+                        .andReturn();
+
+                    int status = result.getResponse().getStatus();
+                    if (status == 201) {
+                        criadosComSucesso.incrementAndGet();
+                    } else if (status == 422) {
+                        duplicadosRejeitados.incrementAndGet();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        readyLatch.await();
+        startLatch.countDown();
+        doneLatch.await();
+        executor.shutdown();
+
+        assertEquals(1, criadosComSucesso.get(), "Exatamente 1 cartão deve ser criado com sucesso (201)");
+        assertEquals(1, duplicadosRejeitados.get(), "Exatamente 1 criação concorrente deve ser rejeitada (422)");
+    }
+
+    @Test
     @DisplayName("Garantir que 2 transações simultâneas de R$10 numa conta com R$10 de saldo não causam problema de concorrência")
     void deveGarantirConcorrenciaEmTransacoesSimultaneas() throws Exception {
         String numeroCartao = "6549873025634506";
